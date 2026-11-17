@@ -1,0 +1,178 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Join Notes</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#faf8f3;color:#223c38;font:17px/1.55 system-ui,sans-serif}main{max-width:800px;margin:auto;padding:32px 20px}h1{font: bold 46px Georgia,serif;margin:0 0 22px}h2{font: bold 29px Georgia,serif}h3,summary{font-size:17px}select,button{font:inherit;padding:8px 12px;border:1px solid #84978e;border-radius:6px;background:white;color:inherit}select{width:100%;margin:6px 0 16px}button,summary{cursor:pointer}button[aria-pressed=true]{background:#244c42;color:white}article{background:white;border-top:4px solid #52766a;padding:10px 24px 24px;margin-top:22px}summary{font-weight:650;padding:10px 0}details{border-bottom:1px solid #d9ded9}button:focus-visible,summary:focus-visible,select:focus-visible{outline:3px solid #bc6526;outline-offset:2px}
+table{border-collapse:collapse;width:100%;margin:12px 0 18px}caption{text-align:left;font-weight:650}th,td{text-align:left;padding:5px 10px;border-bottom:1px solid #cad6cf}th{background:#edf2ed}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef3ef;padding:12px}select{max-width:100%}th,td{overflow-wrap:anywhere}button{margin:2px}</style><main><h1>Join Notes</h1><label for="question">Choose a SQL question</label><select id="question"></select><div id="modes" role="group" aria-label="Reading format"></div><article id="answer"></article></main>
+<script>
+const records=[
+ ['How do INNER JOIN and LEFT JOIN differ?', 'INNER JOIN returns matching pairs. LEFT JOIN also keeps each unmatched row from the left table.', 'One student can match several enrolments and appear more than once.', 'Ada has two enrolments and Bo has none. The inner join returns Ada twice. The left join returns Ada twice and Bo once.', 'Each match produces a row. For an unmatched student, the left join fills the enrolment columns with NULL.'],
+ ['Why does one student appear twice?', 'A join returns one row for each matching pair.', 'A unique student ID in the student table can still match several rows in the enrolment table.', 'Ada matches one active enrolment and one inactive enrolment. Both rows contain her name.', 'The join pairs records by student ID. It keeps both enrolments even when you display only the student name.'],
+ ['Why did a LEFT JOIN drop a student?', 'A WHERE condition on the right table can remove an unmatched student.', 'To keep every student while matching only active enrolments, put the active = 1 condition in ON.', 'With active = 1 in WHERE, only Ada appears. With the condition in ON, Ada and Bo both appear.', 'WHERE filters the joined rows. Bo has NULL for the enrolment fields, so his row fails the filter. ON limits which enrolments match while the left join still keeps Bo.']
+];
+const labels=['Short answer','Key condition','Worked example','Why this happens'];
+const question=document.querySelector('#question'), modes=document.querySelector('#modes'), answer=document.querySelector('#answer');
+let mode='Layered';
+function add(parent,tag,text){const el=document.createElement(tag);el.textContent=text;parent.append(el);return el}
+records.forEach((row,i)=>add(question,'option',row[0]).value=i);
+for(const name of ['Plain','Headings','Layered']){
+ const b=add(modes,'button',name);b.onclick=()=>{mode=name;render()};
+}
+const examples = {
+  "sources": [
+    [
+      "student",
+      [
+        "id",
+        "name"
+      ],
+      [
+        [
+          1,
+          "Ada"
+        ],
+        [
+          2,
+          "Bo"
+        ]
+      ]
+    ],
+    [
+      "enrolment",
+      [
+        "student_id",
+        "active"
+      ],
+      [
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ]
+    ]
+  ],
+  "questions": [
+    [
+      {
+        "title": "INNER JOIN",
+        "sql": "SELECT s.name, e.active\nFROM student AS s\nINNER JOIN enrolment AS e\n  ON s.id = e.student_id\nORDER BY s.name, e.active;",
+        "rows": [
+          [
+            "Ada",
+            0
+          ],
+          [
+            "Ada",
+            1
+          ]
+        ],
+        "note": "Only Ada has matching enrolments."
+      },
+      {
+        "title": "LEFT JOIN",
+        "sql": "SELECT s.name, e.active\nFROM student AS s\nLEFT JOIN enrolment AS e\n  ON s.id = e.student_id\nORDER BY s.name, e.active;",
+        "rows": [
+          [
+            "Ada",
+            0
+          ],
+          [
+            "Ada",
+            1
+          ],
+          [
+            "Bo",
+            null
+          ]
+        ],
+        "note": "Bo stays in the result with NULL in the active column."
+      }
+    ],
+    [
+      {
+        "title": "Two matches for Ada",
+        "sql": "SELECT s.name, e.active\nFROM student AS s\nINNER JOIN enrolment AS e\n  ON s.id = e.student_id\nORDER BY s.name, e.active;",
+        "rows": [
+          [
+            "Ada",
+            0
+          ],
+          [
+            "Ada",
+            1
+          ]
+        ],
+        "note": "Both enrolments match Ada\u2019s ID, so her name appears twice."
+      }
+    ],
+    [
+      {
+        "title": "Filter in WHERE",
+        "sql": "SELECT s.name, e.active\nFROM student AS s\nLEFT JOIN enrolment AS e\n  ON s.id = e.student_id\nWHERE e.active = 1\nORDER BY s.name, e.active;",
+        "rows": [
+          [
+            "Ada",
+            1
+          ]
+        ],
+        "note": "The filter removes Bo because his active value is NULL."
+      },
+      {
+        "title": "Filter in ON",
+        "sql": "SELECT s.name, e.active\nFROM student AS s\nLEFT JOIN enrolment AS e\n  ON s.id = e.student_id AND e.active = 1\nORDER BY s.name, e.active;",
+        "rows": [
+          [
+            "Ada",
+            1
+          ],
+          [
+            "Bo",
+            null
+          ]
+        ],
+        "note": "Only active enrolments match. Bo still gets an unmatched row."
+      }
+    ]
+  ]
+};
+function table(parent, caption, columns, rows) {
+  const t = add(parent, 'table', '');
+  add(t, 'caption', caption);
+  const head = add(add(t, 'thead', ''), 'tr', '');
+  for (const name of columns) add(head, 'th', name).scope = 'col';
+  const body = add(t, 'tbody', '');
+  for (const values of rows) {
+    const row = add(body, 'tr', '');
+    for (const value of values) add(row, 'td', String(value ?? 'NULL'));
+  }
+}
+function showExample(parent) {
+  for (const source of examples.sources) table(parent, ...source);
+  add(parent, 'small', 'active: 1 means active and 0 means inactive. NULL means there is no value here.');
+  for (const item of examples.questions[question.value]) {
+    add(parent, 'h4', item.title);
+    add(add(parent, 'pre', ''), 'code', item.sql);
+    table(parent, 'Query result', ['name', 'active'], item.rows);
+    add(parent, 'p', item.note);
+  }
+}
+function render(){
+ const [title,...parts]=records[question.value];answer.replaceChildren();add(answer,'h2',title);
+ for(const b of modes.children)b.setAttribute('aria-pressed',String(b.textContent===mode));
+ const panels=[];
+ parts.forEach((part,i)=>{
+   let parent=answer;
+   if(mode==='Layered' && i>=2){
+     parent=add(answer,'details','');
+     add(parent,'summary',labels[i]);
+     panels.push(parent);
+   } else if(mode!=='Plain') add(answer,'h3',labels[i]);
+   if(i===2) showExample(parent);
+   add(parent,'p',part);
+ });
+ if(panels.length){const b=add(answer,'button','Expand all');const sync=()=>{b.textContent=panels.every(d=>d.open)?'Collapse all':'Expand all'};for(const d of panels)d.ontoggle=sync;b.onclick=()=>{const open=!panels.every(d=>d.open);for(const d of panels)d.open=open;sync()}}
+}
+question.onchange=render;render();
+</script></html>
